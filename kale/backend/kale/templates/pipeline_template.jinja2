@@ -1,0 +1,174 @@
+import json
+import kfp.components as comp
+from collections import OrderedDict
+from kubernetes import client as k8s_client
+
+{# PIPELINE LIGHTWEIGHT COMPONENTS #}
+{% for func in lightweight_components -%}
+{{func}}
+{% endfor -%}
+
+{# DEFINE PIPELINE TASKS FROM FUNCTIONS #}
+{%- for name in step_names -%}
+{% if docker_image != '' %}
+{{ name }}_op = comp.func_to_container_op({{ name }}, base_image='{{ docker_image }}')
+{% else %}
+{{ name }}_op = comp.func_to_container_op({{ name }})
+{% endif %}
+{% endfor -%}
+
+{# DECLARE PIPELINE #}
+import kfp.dsl as dsl
+@dsl.pipeline(
+   name='{{ pipeline_name }}',
+   description='{{ pipeline_description }}'
+)
+def auto_generated_pipeline({%- for arg in parameters_names -%}
+    {{ arg }}='{{ parameters_values[loop.index-1] }}'
+    {%- if loop.index < parameters_values|length -%},
+    {%- endif -%}
+    {%- endfor -%}):
+    pvolumes_dict = OrderedDict()
+    volume_step_names = []
+    volume_name_parameters = []
+
+    {% for vol in volumes -%}
+    {% set name= vol['name'] %}
+    {% set mountpoint = vol['mount_point'] %}
+    {% set pvc_size = vol['size']|default ('') + vol['size_type']|default ('') %}
+    {% set annotations = vol['annotations']|default({}) %}
+    annotations = {{ annotations }}
+
+    {% if vol['type'] == 'pv' %}
+
+    pvc{{ loop.index }}  = k8s_client.V1PersistentVolumeClaim(
+        api_version="v1",
+        kind="PersistentVolumeClaim",
+        metadata=k8s_client.V1ObjectMeta(
+            name="{{ name }}-claim-{{ pipeline_name }}"
+        ),
+        spec=k8s_client.V1PersistentVolumeClaimSpec(
+            volume_name="{{ name }}",
+            access_modes=['ReadWriteOnce'],
+            resources=k8s_client.V1ResourceRequirements(
+                requests={"storage": {{ pvc_size }}}
+            )
+        )
+    )
+
+    vop{{ loop.index }} = dsl.VolumeOp(
+        name="pvc-data{{ loop.index }}",
+        annotations=annotations,
+        k8s_resource=pvc{{ loop.index }}
+    )
+    volume = vop{{ loop.index }}.volume
+    volume_step_names.append(vop{{ loop.index }}.name)
+    volume_name_parameters.append(vop{{ loop.index }}.outputs["name"].full_name)
+
+    {% elif vol['type'] == 'pvc' %}
+
+    volume = dsl.PipelineVolume(pvc=vol_{{ mountpoint.replace('/', '_').strip('_') }})
+
+    {% elif vol['type'] == 'new_pvc' %}
+    {% if annotations.get('rok/origin') %}
+    annotations['rok/origin'] = rok_{{ name.replace('-', '_') }}_url
+    {% endif %}
+
+    vop{{ loop.index }} = dsl.VolumeOp(
+        name='create-volume-{{ loop.index }}',
+        resource_name='{{ name }}',
+        {%- if annotations %}
+        annotations=annotations,
+        {% endif -%}
+        size='{{ pvc_size }}'
+    )
+    volume = vop{{ loop.index }}.volume
+    volume_step_names.append(vop{{ loop.index }}.name)
+    volume_name_parameters.append(vop{{ loop.index }}.outputs["name"].full_name)
+
+    {% endif %}
+
+    pvolumes_dict['{{ mountpoint }}'] = volume
+
+    {% endfor %}
+
+    {% if marshal_volume %}
+    marshal_vop = dsl.VolumeOp(
+        name="kale_marshal_volume",
+        resource_name="kale-marshal-pvc",
+        modes=dsl.VOLUME_MODE_RWM,
+        size="1Gi"
+    )
+    volume_step_names.append(marshal_vop.name)
+    volume_name_parameters.append(marshal_vop.outputs["name"].full_name)
+    pvolumes_dict['{{ marshal_path }}'] = marshal_vop.volume
+    {% endif %}
+
+    volume_step_names.sort()
+    volume_name_parameters.sort()
+
+    {% for name in step_names %}
+    {{ name }}_task = {{ name }}_op({{ all_step_parameters[name]|join(', ') }})\
+                            .add_pvolumes(pvolumes_dict)\
+                            .after({{ step_prevs[ name ]|join(', ') }})
+    {%- if nb_graph.nodes(data=True)[name].get("annotations") %}
+    step_annotations = {{ nb_graph.nodes(data=True)[name].get("annotations", {}) }}
+    for k, v in step_annotations.items():
+        {{ name }}_task.container.add_pod_annotation(k, v)
+    {%- endif %}
+    {%- if nb_graph.nodes(data=True)[name].get("limits") %}
+    step_limits = {{ nb_graph.nodes(data=True)[name].get("limits", {}) }}
+    for k, v in step_limits.items():
+      {{ name }}_task.container.add_resource_limit(k, v)
+    {%- endif %}
+    {{ name }}_task.container.working_dir = "{{ abs_working_dir }}"
+    {{ name }}_task.container.set_security_context(k8s_client.V1SecurityContext(run_as_user=0))
+    output_artifacts = {}
+    {%- if auto_snapshot %}
+    output_artifacts.update({'mlpipeline-ui-metadata': '/mlpipeline-ui-metadata.json'})
+    {%- endif %}
+    {%- if nb_graph.nodes(data=True)[name].get("metrics") %}
+    output_artifacts.update({'mlpipeline-metrics': '/mlpipeline-metrics.json'})
+    {%- endif %}
+    {%- if name != "final_auto_snapshot" and name != "pipeline_metrics" %}
+    output_artifacts.update({'mlpipeline-ui-metadata': '/mlpipeline-ui-metadata.json'})
+    output_artifacts.update({'{{ name }}': '/{{ name }}.html'})
+    {%- endif %}
+    {{ name }}_task.output_artifact_paths.update(output_artifacts)
+    dep_names = {{ name }}_task.dependent_names + volume_step_names
+    {{ name }}_task.add_pod_annotation(
+        "kubeflow-kale.org/dependent-templates", json.dumps(dep_names))
+    if volume_name_parameters:
+        {{ name }}_task.add_pod_annotation(
+            "kubeflow-kale.org/volume-name-parameters",
+            json.dumps(volume_name_parameters))
+    {% endfor %}
+
+    {# Snaphosts #}
+    {% for vol in volumes -%}
+    {% if vol['snapshot'] %}
+    snapshot{{ loop.index }} = dsl.VolumeSnapshotOp(
+        name='snapshot-volume-{{ loop.index }}',
+        resource_name='{{ vol['snapshot_name'] }}',
+        volume=vop{{ loop.index }}.volume.after({{ leaf_steps| map('add_suffix', '_task') | join(', ') }})
+    )
+    {% endif %}
+    {% endfor %}
+
+
+{# The script will deploy the pipeline if run manually #}
+if __name__ == "__main__":
+    pipeline_func = auto_generated_pipeline
+    pipeline_filename = pipeline_func.__name__ + '.pipeline.tar.gz'
+    import kfp.compiler as compiler
+    compiler.Compiler().compile(pipeline_func, pipeline_filename)
+
+    # Get or create an experiment and submit a pipeline run
+    import kfp
+    client = kfp.Client()
+    experiment = client.create_experiment('{{ experiment_name }}')
+
+    # Submit a pipeline run
+    from kale.utils.kfp_utils import generate_run_name
+    run_name = generate_run_name('{{ pipeline_name }}')
+    run_result = client.run_pipeline(experiment.id, run_name, pipeline_filename, {})
