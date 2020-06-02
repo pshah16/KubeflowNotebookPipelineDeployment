@@ -8,10 +8,12 @@ installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
 
 if 'torch' in installed_packages:
     import torch.nn as nn
+    import torch.nn.functional as F
 else:
-    subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch==1.5.0', '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
+    subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch==1.5.0', '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+    import torch.nn as nn
+    import torch.nn.functional as F
     
-import torch.nn.functional as F
 
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
