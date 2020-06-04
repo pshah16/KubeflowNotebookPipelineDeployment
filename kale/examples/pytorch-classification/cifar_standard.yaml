@@ -5,9 +5,9 @@
 "metadata":
   "annotations":
     "pipelines.kubeflow.org/pipeline_spec": |-
-      {"description": "Sequential PyTorch pipeline to train a network on the CIFAR10 dataset", "inputs": [{"default": "2", "name": "TRAIN_STEPS", "optional": true}], "name": "cifar10-classification-x98ke"}
+      {"description": "Sequential PyTorch pipeline to train a network on the CIFAR10 dataset", "inputs": [{"default": "2", "name": "TRAIN_STEPS", "optional": true}], "name": "cifar10-classification-gvm3v"}
   "generateName": |-
-    cifar10-classification-x98ke-
+    cifar10-classification-gvm3v-
 "spec":
   "arguments":
     "parameters":
@@ -16,7 +16,7 @@
       "value": |-
         2
   "entrypoint": |-
-    cifar10-classification-x98ke
+    cifar10-classification-gvm3v
   "serviceAccountName": |-
     pipeline-runner
   "templates":
@@ -105,7 +105,7 @@
       - "name": |-
           TRAIN_STEPS
     "name": |-
-      cifar10-classification-x98ke
+      cifar10-classification-gvm3v
   - "container":
       "args":
       - |-
@@ -139,25 +139,27 @@
             reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
             installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
 
+            if 'wget' in installed_packages:
+                import wget
+            else:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'wget'])
+                import wget
+
             if 'torch' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torch.nn as nn
                 import torch
             else:
-                os.chdir('/home/jovyan/')
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch==1.5.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])               
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torch.nn as nn
                 import torch
 
             if 'torchvision' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torchvision
                 import torchvision.transforms as transforms
             else:
-                os.chdir('/home/jovyan/') 
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torchvision==0.6.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])               
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torchvision
                 import torchvision.transforms as transforms
 
@@ -165,14 +167,19 @@
             import numpy as np
             import os
 
-            # functions to show an image
-            if 'function_library' in installed_packages:
+            try:
                 from function_library.function_library import Net, imshow
-            else:
-                os.chdir(
-                    '/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/')
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'function_library', '--user'])
-                from function_library.function_library import Net, imshow
+            except:
+                print("Installing function_library")
+                url_function = 'https://raw.githubusercontent.com/pshah16/KubeflowNotebookPipelineDeployment/master/kale/examples/pytorch-classification/function_library/function_library.py'
+                path = '/'
+                wget.download(url_function, path)
+                print("Function library installed")
+                sys.path.append(path)
+                import function_library
+                print("Imported function_library")
+                from function_library import Net, imshow
+                print("Imported functions from function_library")
             classes = ('plane', 'car', 'bird', 'cat',
                        'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -239,7 +246,7 @@
           "cpu": |-
             0.5
           "memory": |-
-            4G
+            2G
       "securityContext":
         "runAsUser": !!int |-
           0
@@ -300,7 +307,7 @@
           - ReadWriteMany
           resources:
             requests:
-              storage: 4Gi
+              storage: 2Gi
           storageClassName: standard
   - "container":
       "args":
@@ -336,22 +343,6 @@
                 if os.path.isfile(os.path.join(_kale_data_directory, f))
             ]
 
-            if "testloader" not in _kale_directory_file_names:
-                raise ValueError("testloader" + " does not exists in directory")
-
-            _kale_load_file_name = [
-                f
-                for f in os.listdir(_kale_data_directory)
-                if os.path.isfile(os.path.join(_kale_data_directory, f)) and
-                os.path.splitext(f)[0] == "testloader"
-            ]
-            if len(_kale_load_file_name) > 1:
-                raise ValueError("Found multiple files with name " +
-                                 "testloader" + ": " + str(_kale_load_file_name))
-            _kale_load_file_name = _kale_load_file_name[0]
-            testloader = _kale_resource_load(os.path.join(
-                _kale_data_directory, _kale_load_file_name))
-
             if "net" not in _kale_directory_file_names:
                 raise ValueError("net" + " does not exists in directory")
 
@@ -367,6 +358,22 @@
             _kale_load_file_name = _kale_load_file_name[0]
             net = _kale_resource_load(os.path.join(
                 _kale_data_directory, _kale_load_file_name))
+
+            if "testloader" not in _kale_directory_file_names:
+                raise ValueError("testloader" + " does not exists in directory")
+
+            _kale_load_file_name = [
+                f
+                for f in os.listdir(_kale_data_directory)
+                if os.path.isfile(os.path.join(_kale_data_directory, f)) and
+                os.path.splitext(f)[0] == "testloader"
+            ]
+            if len(_kale_load_file_name) > 1:
+                raise ValueError("Found multiple files with name " +
+                                 "testloader" + ": " + str(_kale_load_file_name))
+            _kale_load_file_name = _kale_load_file_name[0]
+            testloader = _kale_resource_load(os.path.join(
+                _kale_data_directory, _kale_load_file_name))
             # -----------------------DATA LOADING END----------------------------------
 
             import subprocess
@@ -375,14 +382,18 @@
             reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
             installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
 
+            if 'wget' in installed_packages:
+                import wget
+            else:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'wget'])
+                import wget
+
             if 'torch' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torch.nn as nn
                 import torch
             else:
-                os.chdir('/home/jovyan/')
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch==1.5.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torch.nn as nn
                 import torch
 
@@ -391,7 +402,7 @@
                 import torchvision.transforms as transforms
             else:
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torchvision==0.6.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torchvision
                 import torchvision.transforms as transforms
 
@@ -399,14 +410,19 @@
             import numpy as np
             import os
 
-            # functions to show an image
-            if 'function_library' in installed_packages:
+            try:
                 from function_library.function_library import Net, imshow
-            else:
-                os.chdir(
-                    '/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/')
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'function_library', '--user'])
-                from function_library.function_library import Net, imshow
+            except:
+                print("Installing function_library")
+                url_function = 'https://raw.githubusercontent.com/pshah16/KubeflowNotebookPipelineDeployment/master/kale/examples/pytorch-classification/function_library/function_library.py'
+                path = '/'
+                wget.download(url_function, path)
+                print("Function library installed")
+                sys.path.append(path)
+                import function_library
+                print("Imported function_library")
+                from function_library import Net, imshow
+                print("Imported functions from function_library")
             classes = ('plane', 'car', 'bird', 'cat',
                        'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -424,15 +440,15 @@
                                           for j in range(4)))
 
             # -----------------------DATA SAVING START---------------------------------
+            if "net" in locals():
+                _kale_resource_save(net, os.path.join(_kale_data_directory, "net"))
+            else:
+                print("_kale_resource_save: `net` not found.")
             if "testloader" in locals():
                 _kale_resource_save(testloader, os.path.join(
                     _kale_data_directory, "testloader"))
             else:
                 print("_kale_resource_save: `testloader` not found.")
-            if "net" in locals():
-                _kale_resource_save(net, os.path.join(_kale_data_directory, "net"))
-            else:
-                print("_kale_resource_save: `net` not found.")
 
         import argparse
         _parser = argparse.ArgumentParser(prog='Testontest', description='')
@@ -532,22 +548,6 @@
                 if os.path.isfile(os.path.join(_kale_data_directory, f))
             ]
 
-            if "testloader" not in _kale_directory_file_names:
-                raise ValueError("testloader" + " does not exists in directory")
-
-            _kale_load_file_name = [
-                f
-                for f in os.listdir(_kale_data_directory)
-                if os.path.isfile(os.path.join(_kale_data_directory, f)) and
-                os.path.splitext(f)[0] == "testloader"
-            ]
-            if len(_kale_load_file_name) > 1:
-                raise ValueError("Found multiple files with name " +
-                                 "testloader" + ": " + str(_kale_load_file_name))
-            _kale_load_file_name = _kale_load_file_name[0]
-            testloader = _kale_resource_load(os.path.join(
-                _kale_data_directory, _kale_load_file_name))
-
             if "net" not in _kale_directory_file_names:
                 raise ValueError("net" + " does not exists in directory")
 
@@ -563,6 +563,22 @@
             _kale_load_file_name = _kale_load_file_name[0]
             net = _kale_resource_load(os.path.join(
                 _kale_data_directory, _kale_load_file_name))
+
+            if "testloader" not in _kale_directory_file_names:
+                raise ValueError("testloader" + " does not exists in directory")
+
+            _kale_load_file_name = [
+                f
+                for f in os.listdir(_kale_data_directory)
+                if os.path.isfile(os.path.join(_kale_data_directory, f)) and
+                os.path.splitext(f)[0] == "testloader"
+            ]
+            if len(_kale_load_file_name) > 1:
+                raise ValueError("Found multiple files with name " +
+                                 "testloader" + ": " + str(_kale_load_file_name))
+            _kale_load_file_name = _kale_load_file_name[0]
+            testloader = _kale_resource_load(os.path.join(
+                _kale_data_directory, _kale_load_file_name))
             # -----------------------DATA LOADING END----------------------------------
 
             import subprocess
@@ -571,25 +587,27 @@
             reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
             installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
 
+            if 'wget' in installed_packages:
+                import wget
+            else:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'wget'])
+                import wget
+
             if 'torch' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torch.nn as nn
                 import torch
             else:
-                os.chdir('/home/jovyan/')
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch==1.5.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torch.nn as nn
                 import torch
 
             if 'torchvision' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torchvision
                 import torchvision.transforms as transforms
             else:
-                os.chdir('/home/jovyan/')
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torchvision==0.6.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torchvision
                 import torchvision.transforms as transforms
 
@@ -597,14 +615,19 @@
             import numpy as np
             import os
 
-            # functions to show an image
-            if 'function_library' in installed_packages:
+            try:
                 from function_library.function_library import Net, imshow
-            else:
-                os.chdir(
-                    '/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/')
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'function_library', '--user'])
-                from function_library.function_library import Net, imshow
+            except:
+                print("Installing function_library")
+                url_function = 'https://raw.githubusercontent.com/pshah16/KubeflowNotebookPipelineDeployment/master/kale/examples/pytorch-classification/function_library/function_library.py'
+                path = '/'
+                wget.download(url_function, path)
+                print("Function library installed")
+                sys.path.append(path)
+                import function_library
+                print("Imported function_library")
+                from function_library import Net, imshow
+                print("Imported functions from function_library")
             classes = ('plane', 'car', 'bird', 'cat',
                        'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -758,25 +781,27 @@
             reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
             installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
 
+            if 'wget' in installed_packages:
+                import wget
+            else:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'wget'])
+                import wget
+
             if 'torch' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torch.nn as nn
                 import torch
             else:
-                os.chdir('/home/jovyan/')
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torch==1.5.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torch.nn as nn
                 import torch
 
             if 'torchvision' in installed_packages:
-                os.chdir('/home/jovyan/')
                 import torchvision
                 import torchvision.transforms as transforms
             else:
-                os.chdir('/home/jovyan/')
                 subprocess.run([sys.executable, '-m', 'pip', 'install', 'torchvision==0.6.0',
-                                '-f', 'https://download.pytorch.org/whl/torch_stable.html', '--user'])
+                                '-f', 'https://download.pytorch.org/whl/torch_stable.html'])
                 import torchvision
                 import torchvision.transforms as transforms
 
@@ -784,19 +809,24 @@
             import numpy as np
             import os
 
-            # functions to show an image
-            if 'function_library' in installed_packages:
+            try:
                 from function_library.function_library import Net, imshow
-            else:
-                os.chdir(
-                    '/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/')
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'function_library', '--user'])
-                from function_library.function_library import Net, imshow
+            except:
+                print("Installing function_library")
+                url_function = 'https://raw.githubusercontent.com/pshah16/KubeflowNotebookPipelineDeployment/master/kale/examples/pytorch-classification/function_library/function_library.py'
+                path = '/'
+                wget.download(url_function, path)
+                print("Function library installed")
+                sys.path.append(path)
+                import function_library
+                print("Imported function_library")
+                from function_library import Net, imshow
+                print("Imported functions from function_library")
             classes = ('plane', 'car', 'bird', 'cat',
                        'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
             import torch.optim as optim
-            import torch.nn as nn
+
             net = Net()
             criterion = nn.CrossEntropyLoss()
             optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
