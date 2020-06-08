@@ -12,7 +12,7 @@ def dataprocessing(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -105,7 +105,7 @@ def train(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -230,7 +230,7 @@ def testontest(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -359,7 +359,7 @@ def testwhole(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -520,13 +520,13 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
 #     dataprocessing_task = dataprocessing_op(TRAIN_STEPS)\
 #         .add_pvolumes(pvolumes_dict)\
 #         .after()
-    example_path = "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
+    example_path = "./KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     dataprocessing_task = dataprocessing_op(TRAIN_STEPS).\
-        add_volume(k8s_client.V1Volume(name='workspacekubeflowdemo',\
+        add_volume(k8s_client.V1Volume(name='kubeflowpipelinedemo-pshah-azurefile',\
                                     host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after()
 
     dataprocessing_task.container.working_dir=\
-    "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
+    "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     dataprocessing_task.container.set_security_context(
         k8s_client.V1SecurityContext(run_as_user=0))
     
@@ -539,10 +539,10 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
 #         .add_pvolumes(pvolumes_dict)\
 #         .after(dataprocessing_task)
     train_task = train_op(TRAIN_STEPS).\
-    add_volume(k8s_client.V1Volume(name='workspace-kubeflowdemo',\
+    add_volume(k8s_client.V1Volume(name='kubeflowpipelinedemo-pshah-azurefile',\
     host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after(dataprocessing_task)
     train_task.container.working_dir=\
-    "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
+    "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     train_task.container.set_security_context(
         k8s_client.V1SecurityContext(run_as_user=0))
 
@@ -558,7 +558,7 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
     .add_volume(k8s_client.V1Volume(name='workspace-kubeflowdemo',\
     host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after(train_task)
     testontest_task.container.working_dir=\
-    "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
+    "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     testontest_task.container.set_security_context(
         k8s_client.V1SecurityContext(run_as_user=0))
     
@@ -574,7 +574,7 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
         .add_volume(k8s_client.V1Volume(name='workspace-kubeflowdemo',\
         host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after(testontest_task)
     testwhole_task.container.working_dir =\
-    "/home/jovyan/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
+    "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     testwhole_task.container.set_security_context(
         k8s_client.V1SecurityContext(run_as_user=0))
 
