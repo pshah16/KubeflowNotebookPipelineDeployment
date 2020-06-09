@@ -7,7 +7,7 @@
     "pipelines.kubeflow.org/pipeline_spec": |-
       {"description": "Sequential PyTorch pipeline to train a network on the CIFAR10 dataset", "inputs": [{"default": "2", "name": "TRAIN_STEPS", "optional": true}], "name": "cifar10-classification-gvm3v"}
   "generateName": |-
-    cifar10-classification-gvm3v-
+    cifar10-classification-gvm3v-  
 "spec":
   "arguments":
     "parameters":
