@@ -12,7 +12,7 @@ def dataprocessing(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -105,7 +105,7 @@ def train(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -231,7 +231,7 @@ def testontest(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -360,7 +360,7 @@ def testwhole(TRAIN_STEPS: int):
     from kale.marshal import resource_save as _kale_resource_save
     from kale.marshal import resource_load as _kale_resource_load
 
-    _kale_data_directory = "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal"
+    _kale_data_directory = "/marshal"
 
     if not os.path.isdir(_kale_data_directory):
         os.makedirs(_kale_data_directory, exist_ok=True)
@@ -508,19 +508,18 @@ testwhole_op = comp.func_to_container_op(
 def auto_generated_pipeline(TRAIN_STEPS='2'):
     pvolumes_dict = OrderedDict()
 
-#     marshal_vop = dsl.VolumeOp(
-#         name="kale_marshal_volume",
-#         resource_name="kale-marshal-pvc",
-#         modes=dsl.VOLUME_MODE_RWM,
-#         size="2Gi",
-#         storage_class="standard",
-#         annotations={'example':'cifar_pvc'}
-#     )
+    marshal_vop = dsl.VolumeOp(
+        name="kale_marshal_volume",
+        resource_name="kale-marshal-pvc",
+        modes=dsl.VOLUME_MODE_RWM,
+        size="2Gi",
+        storage_class="standard",
+        annotations={'example':'cifar_pvc'}
+    )
 
-    marshal_vop = dsl.PipelineVolume(pvc="kubeflowpipelinedemo-pshah-azurefile")
-#     pvolumes_dict['/marshal'] = marshal_vop.volume
-#     pvolumes_dict['/marshal'] = marshal_vop
-    pvolumes_dict['/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal'] = marshal_vop
+    pvolumes_dict['/marshal'] = marshal_vop.volume
+#     marshal_vop = dsl.PipelineVolume(pvc="workspace-kubeflowsharedvolumedemo")
+#     pvolumes_dict['/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal'] = marshal_vop
 
     dataprocessing_task = dataprocessing_op(TRAIN_STEPS)\
         .add_pvolumes(pvolumes_dict)\
