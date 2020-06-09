@@ -118,6 +118,7 @@ def train(TRAIN_STEPS: int):
     ]
 
     if "trainloader" not in _kale_directory_file_names:
+        print("_kale_directory_file_names: {}".format(_kale_directory_file_names))
         raise ValueError("trainloader" + " does not exists in directory")
 
     _kale_load_file_name = [
@@ -515,15 +516,15 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
 #         storage_class="standard",
 #         annotations={'example':'cifar_pvc'}
 #     )
-#     pvolumes_dict['/marshal'] = marshal_vop.volume
 
-#     dataprocessing_task = dataprocessing_op(TRAIN_STEPS)\
-#         .add_pvolumes(pvolumes_dict)\
-#         .after()
-    example_path = "./KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
-    dataprocessing_task = dataprocessing_op(TRAIN_STEPS).\
-        add_volume(k8s_client.V1Volume(name='kubeflowpipelinedemo-pshah-azurefile',\
-                                    host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after()
+    marshal_vop = dsl.PipelineVolume(pvc="kubeflowpipelinedemo-pshah-azurefile")
+#     pvolumes_dict['/marshal'] = marshal_vop.volume
+#     pvolumes_dict['/marshal'] = marshal_vop
+    pvolumes_dict['/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification/marshal'] = marshal_vop
+
+    dataprocessing_task = dataprocessing_op(TRAIN_STEPS)\
+        .add_pvolumes(pvolumes_dict)\
+        .after()
 
     dataprocessing_task.container.working_dir=\
     "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
@@ -535,12 +536,9 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
     dataprocessing_task.set_memory_request('2G')
     dataprocessing_task.set_cpu_request('0.5')
 
-#     train_task = train_op(TRAIN_STEPS)\
-#         .add_pvolumes(pvolumes_dict)\
-#         .after(dataprocessing_task)
-    train_task = train_op(TRAIN_STEPS).\
-    add_volume(k8s_client.V1Volume(name='kubeflowpipelinedemo-pshah-azurefile',\
-    host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after(dataprocessing_task)
+    train_task = train_op(TRAIN_STEPS)\
+        .add_pvolumes(pvolumes_dict)\
+        .after(dataprocessing_task)
     train_task.container.working_dir=\
     "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     train_task.container.set_security_context(
@@ -551,12 +549,9 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
     train_task.set_memory_request('2G')
     train_task.set_cpu_request('0.5')
 
-#     testontest_task = testontest_op(TRAIN_STEPS)\
-#         .add_pvolumes(pvolumes_dict)\
-#         .after(train_task)
     testontest_task = testontest_op(TRAIN_STEPS)\
-    .add_volume(k8s_client.V1Volume(name='workspace-kubeflowdemo',\
-    host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after(train_task)
+        .add_pvolumes(pvolumes_dict)\
+        .after(train_task)
     testontest_task.container.working_dir=\
     "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     testontest_task.container.set_security_context(
@@ -567,12 +562,9 @@ def auto_generated_pipeline(TRAIN_STEPS='2'):
     testontest_task.set_memory_request('2G')
     testontest_task.set_cpu_request('0.5')
 
-#     testwhole_task = testwhole_op(TRAIN_STEPS)\
-#         .add_pvolumes(pvolumes_dict)\
-#         .after(testontest_task)
     testwhole_task = testwhole_op(TRAIN_STEPS)\
-        .add_volume(k8s_client.V1Volume(name='workspace-kubeflowdemo',\
-        host_path=k8s_client.V1HostPathVolumeSource(path=example_path))).after(testontest_task)
+        .add_pvolumes(pvolumes_dict)\
+        .after(testontest_task)
     testwhole_task.container.working_dir =\
     "/home/jovyan/data-vol-1/KubeflowNotebookPipelineDeployment/kale/examples/pytorch-classification"
     testwhole_task.container.set_security_context(
